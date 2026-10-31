@@ -46,7 +46,7 @@ EOF
 # Libraries first, executables last: a signature covers what it loads at sign time.
 # Notarization rejects any unsigned Mach-O, whatever its name or mode, so classify
 # every file by content: executables get the entitlements, everything else doesn't.
-find "$bundle" -type f -exec file -h {} + | grep -F 'Mach-O' > "$tmp/macho"
+find "$bundle" -type f -exec file -h {} + | grep -F 'Mach-O' | grep -vF '(for architecture' > "$tmp/macho"  # universal binaries add one line per slice
 grep -F 'executable' "$tmp/macho" | cut -d: -f1 > "$tmp/exes" || true
 grep -vF 'executable' "$tmp/macho" | cut -d: -f1 > "$tmp/libs" || true
 n=0

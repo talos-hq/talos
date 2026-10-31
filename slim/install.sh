@@ -14,7 +14,7 @@
 # compiled and no package manager runs.
 set -eu
 
-repo="talos-hq/hermes-slim"
+repo="talos-hq/talos"
 version="latest"
 archive=""
 upgrade=false

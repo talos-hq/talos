@@ -12,7 +12,7 @@ param(
 )
 $ErrorActionPreference = "Stop"
 $ProgressPreference = "SilentlyContinue"
-$repo = "talos-hq/hermes-slim"
+$repo = "talos-hq/talos"
 if (-not $Dir) {
     $Dir = Join-Path $env:LOCALAPPDATA "talos"
     # Install from before the rename (legacy dir): move it over so it is upgraded in place.

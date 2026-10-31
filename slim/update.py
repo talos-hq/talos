@@ -22,7 +22,7 @@ import tempfile
 import urllib.request
 from pathlib import Path
 
-REPO = "talos-hq/hermes-slim"
+REPO = "talos-hq/talos"
 BUNDLE = Path(__file__).resolve().parent.parent.parent  # <dir>/current: bin/, app/, python/
 
 

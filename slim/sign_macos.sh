@@ -44,8 +44,11 @@ cat > "$tmp/entitlements.plist" <<'EOF'
 EOF
 
 # Libraries first, executables last: a signature covers what it loads at sign time.
-find "$bundle" -type f \( -name '*.so' -o -name '*.dylib' \) > "$tmp/libs"
-find "$bundle" -type f -perm -u+x ! -name '*.so' ! -name '*.dylib' -exec sh -c 'file -b "$1" | grep -q Mach-O && echo "$1"' _ {} \; > "$tmp/exes"
+# Notarization rejects any unsigned Mach-O, whatever its name or mode, so classify
+# every file by content: executables get the entitlements, everything else doesn't.
+find "$bundle" -type f -exec file -h {} + | grep -F 'Mach-O' > "$tmp/macho"
+grep -F 'executable' "$tmp/macho" | cut -d: -f1 > "$tmp/exes" || true
+grep -vF 'executable' "$tmp/macho" | cut -d: -f1 > "$tmp/libs" || true
 n=0
 while IFS= read -r f; do
   codesign --force --timestamp --options runtime --keychain "$keychain" -s "$identity" "$f"; n=$((n + 1))
@@ -64,4 +67,9 @@ fi
 ditto -c -k --keepParent "$bundle" "$tmp/notarize.zip"
 xcrun notarytool submit "$tmp/notarize.zip" --apple-id "$APPLE_NOTARY_USER" --password "$APPLE_NOTARY_PASSWORD" --team-id "$APPLE_TEAM_ID" --wait --timeout 30m > "$tmp/notary.log"
 cat "$tmp/notary.log"
-grep -q 'status: Accepted' "$tmp/notary.log" || { echo "talos: notarization was not accepted" >&2; exit 1; }
+if ! grep -q 'status: Accepted' "$tmp/notary.log"; then
+  # Apple's per-file verdicts; the submission id is the first `id:` line.
+  id="$(sed -n 's/^ *id: //p' "$tmp/notary.log" | head -1)"
+  xcrun notarytool log "$id" --apple-id "$APPLE_NOTARY_USER" --password "$APPLE_NOTARY_PASSWORD" --team-id "$APPLE_TEAM_ID" || true
+  echo "talos: notarization was not accepted" >&2; exit 1
+fi

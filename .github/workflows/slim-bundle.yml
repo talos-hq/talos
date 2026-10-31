@@ -54,6 +54,7 @@ jobs:
       PYTHONUTF8: "1"
       # Read by the signing step's `if` (a step's own env is not visible there).
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      HAS_APPLE_SIGNING: ${{ secrets.APPLE_DEVELOPER_ID_APP_P12 != '' }}
     steps:
       - name: Alpine prerequisites
         if: matrix.container
@@ -111,6 +112,17 @@ jobs:
             if ($env:GITHUB_REF -like 'refs/tags/v*') { throw "$(@($bad).Count) binaries are not validly signed" }
             Write-Host "::warning::$(@($bad).Count) binaries unsigned: this bundle will not run under Smart App Control"
           }
+      # Developer ID signing + notarization so Gatekeeper runs the bundle without
+      # the installer having to strip the quarantine flag.
+      - name: Sign and notarize macOS binaries
+        if: startsWith(matrix.target, 'darwin-') && env.HAS_APPLE_SIGNING == 'true'
+        env:
+          APPLE_DEVELOPER_ID_APP_P12: ${{ secrets.APPLE_DEVELOPER_ID_APP_P12 }}
+          APPLE_DEVELOPER_ID_APP_P12_PASSWORD: ${{ secrets.APPLE_DEVELOPER_ID_APP_P12_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          APPLE_NOTARY_USER: ${{ secrets.APPLE_NOTARY_USER }}
+          APPLE_NOTARY_PASSWORD: ${{ secrets.APPLE_NOTARY_PASSWORD }}
+        run: sh slim/sign_macos.sh "$RUNNER_TEMP/hs-work/talos"
       - name: Package bundle
         run: ${{ steps.py.outputs.bin }} slim/build_bundle.py --target ${{ matrix.target }} --out dist --work "$RUNNER_TEMP/hs-work" --package-only
       - name: Static zstd for clients without one

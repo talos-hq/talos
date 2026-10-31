@@ -40,6 +40,7 @@ EXTRAS = ("telegram", "mcp", "ddgs", "sms")
 APP_EXCLUDE = {
     ".git", ".github", "apps", "website", "web", "tests", "tests-js", "evals", "ui-tui",
     "node_modules", "dist", "build", ".venv", "docker", "nix", "contributors", "assets", ".clud",
+    "wheels",  # CI downloads hermes-slim/wheels here; already installed into site-packages
 }
 # Stdlib parts Hermes never imports: its own test suite, IDLE, Tk and the pip bootstrapper.
 STDLIB_PRUNE = ("test", "idlelib", "tkinter", "turtledemo", "turtle.py", "ensurepip", "__phello__")

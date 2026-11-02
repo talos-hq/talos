@@ -174,6 +174,8 @@ let
     hermesNpmLib.nodejs
     pmPackages.ripgrep
     pmPackages.ffmpeg
+    # Services and cron jobs spawn `uv run --script` with no login shell.
+    pmPackages.uv
     git
     openssh
   ]

@@ -216,6 +216,10 @@ RUN set -eu; \
     python3 -c 'from pm import ensure; [ensure(name, explicit=True) for name in ("uv", "chromium", "npm", "ffmpeg", "ripgrep")]'; \
     python3 -c 'from pathlib import Path; from pm import installed_package; [Path("/usr/local/bin", command).symlink_to(installed_package(package).binary) for command, package in (("python3", "python"), ("node", "node"), ("npm", "npm"), ("ffmpeg", "ffmpeg"), ("rg", "ripgrep"))]; Path("/usr/local/bin/ffprobe").symlink_to(installed_package("ffmpeg").binary.with_name("ffprobe"))'; \
     ffmpeg -version >/dev/null; ffprobe -version >/dev/null; rg --version >/dev/null; \
+    # Non-interactive callers (cron no_agent jobs, `uv run --script` supervisors)
+    # get only the default PATH: link pm's pinned uv/uvx like npx, never a second copy.
+    python3 -c 'from pathlib import Path; from pm import uv_launcher; [Path("/usr/local/bin", name).symlink_to(uv_launcher(name)) for name in ("uv", "uvx")]'; \
+    env -i PATH=/usr/local/bin:/usr/bin:/bin uv --version; \
     python3 -c 'import shutil; from pathlib import Path; from pm import env_for; Path("/usr/local/bin/npx").symlink_to(shutil.which("npx", path=env_for("npm", base_env={})["PATH"]))'; \
     node --version; npm --version; \
     browser_bin="$(python3 -c 'from pm import installed_package; print(installed_package("chromium").binary)')"; \

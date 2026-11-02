@@ -47,6 +47,9 @@ jobs:
             container: alpine:3.22
     runs-on: ${{ matrix.os }}
     container: ${{ matrix.container }}
+    permissions:
+      contents: write
+      id-token: write  # OIDC federated login for Windows signing
     defaults:
       run:
         shell: bash
@@ -54,6 +57,7 @@ jobs:
       PYTHONUTF8: "1"
       # Read by the signing step's `if` (a step's own env is not visible there).
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
+      HAS_AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET != '' }}
       HAS_APPLE_SIGNING: ${{ secrets.APPLE_DEVELOPER_ID_APP_P12 != '' }}
     steps:
       - name: Alpine prerequisites
@@ -87,6 +91,15 @@ jobs:
       # binaries, the wheels' .pyd/.dll included. The interpreter is python.org's
       # (PSF-signed); everything stage listed as unsigned is signed here with our
       # Azure Artifact Signing certificate profile.
+      # Without AZURE_CLIENT_SECRET, authenticate via OIDC: the App Registration needs a
+      # federated credential for this repo; the action then uses AzureCliCredential.
+      - name: Azure login (OIDC)
+        if: matrix.target == 'win32-x64' && env.AZURE_CLIENT_ID != '' && env.HAS_AZURE_CLIENT_SECRET != 'true'
+        uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906  # v3
+        with:
+          client-id: ${{ secrets.AZURE_CLIENT_ID }}
+          tenant-id: ${{ secrets.AZURE_TENANT_ID }}
+          allow-no-subscriptions: true
       - name: Sign Windows binaries
         if: matrix.target == 'win32-x64' && env.AZURE_CLIENT_ID != ''
         uses: azure/artifact-signing-action@208f8af4bf26cf2af8597424e3cb5582801523ba  # v2.0.0
@@ -94,9 +107,9 @@ jobs:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           azure-client-id: ${{ secrets.AZURE_CLIENT_ID }}
           azure-client-secret: ${{ secrets.AZURE_CLIENT_SECRET }}
-          endpoint: ${{ secrets.AZURE_SIGNING_ENDPOINT }}
-          signing-account-name: ${{ secrets.AZURE_SIGNING_ACCOUNT }}
-          certificate-profile-name: ${{ secrets.AZURE_SIGNING_PROFILE }}
+          endpoint: ${{ secrets.AZURE_SIGN_ENDPOINT || secrets.AZURE_SIGNING_ENDPOINT }}
+          signing-account-name: ${{ secrets.AZURE_SIGN_ACCOUNT || secrets.AZURE_SIGNING_ACCOUNT }}
+          certificate-profile-name: ${{ secrets.AZURE_SIGN_PROFILE || secrets.AZURE_SIGNING_PROFILE }}
           files-catalog: ${{ runner.temp }}/hs-work/unsigned.txt
           file-digest: SHA256
           timestamp-digest: SHA256

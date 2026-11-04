@@ -157,3 +157,32 @@ def test_reconcile_counts_adopted_shared_connection_as_live(monkeypatch, tmp_pat
             mcp_tool._servers.pop(("A", "x"), None)
             mcp_tool._server_scope_keys.pop(("A", "x"), None)
             mcp_tool._server_tool_scopes.pop(("A", "x"), None)
+
+
+def test_reconcile_missing_sdk_is_failed_with_backoff(monkeypatch):
+    """A configured server cannot be added when the selected environment lacks the SDK."""
+    from types import SimpleNamespace
+
+    from tools import mcp_tool
+    from tools import mcp_tool_config as config
+    from tools import mcp_tool_discovery as disc
+
+    monkeypatch.setattr(mcp_tool, "_mcp_registry_scope", lambda: None)
+    for attr in ("_servers", "_server_scope_keys", "_server_tool_scopes",
+                 "_lazy_server_configs", "_server_connect_errors",
+                 "_server_connect_failures", "_server_connect_retry_after"):
+        monkeypatch.setattr(mcp_tool, attr, {})
+    monkeypatch.setattr(mcp_tool, "_server_connecting", set())
+    monkeypatch.setattr(mcp_tool, "_MCP_AVAILABLE", False)
+    monkeypatch.setattr(config, "_load_mcp_config", lambda: {"clud": {"command": "python"}})
+    now = [0.0]
+    monkeypatch.setattr(disc, "time", SimpleNamespace(monotonic=lambda: now[0]))
+    for tick, attempts, deadline in ((0, 1, 30), (29, 1, 30), (60, 2, 120),
+                                     (119, 2, 120), (120, 3, 240), (180, 3, 240),
+                                     (240, 4, 480), (300, 4, 480), (480, 5, 960),
+                                     (960, 6, 1560), (1020, 6, 1560)):
+        now[0] = tick
+        assert disc.reconcile_mcp_servers_with_config()["added"] == []
+        assert mcp_tool._server_connect_failures["clud"] == attempts
+        assert mcp_tool._server_connect_retry_after["clud"] == deadline
+    assert "SDK" in mcp_tool._server_connect_errors["clud"]

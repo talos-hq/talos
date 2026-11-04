@@ -1,0 +1,22 @@
+# Nous-approved MCP catalog entry.
+# Presence in this directory = approval. Merged via PR review.
+manifest_version: 1
+
+name: clud
+description: 'Clud local Claude/Codex harness and developer tools.'
+source: https://pypi.org/project/clud/
+
+# Keep the executable pin and informational version together for one-line upgrades.
+transport: {type: stdio, command: uvx, args: [--from, clud==2.8.52, python, -m, clud.mcp_server], version: '2.8.52'}
+
+auth:
+  type: none
+
+suggest:
+  keywords: [clud, claude, codex]
+
+post_install: |
+  Authenticate clud separately using its own CLI before using its tools.
+  Restart your Hermes session (and any running gateway/agent) to load the tools.
+  Upgrading the pin is a one-line manifest change: update args and version
+  together on the transport line.

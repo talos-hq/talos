@@ -1,6 +1,7 @@
 """Small pure helpers shared by the tools.mcp_tool_* modules: SDK 1.x/2.x field access,
 error-text sanitising, numeric/bool coercion, timeouts and jitter. No origin state."""
 
+import importlib.util
 import logging
 import math
 import os
@@ -21,6 +22,7 @@ class _OriginProxy:
 
     def __getattr__(self, name: str):
         from tools import mcp_tool
+
         return getattr(mcp_tool, name)
 
 
@@ -38,7 +40,7 @@ def mcp_field(obj, snake: str, camel: str, default=None):
     return default if value is _MISSING else value
 
 
-_DEFAULT_TOOL_TIMEOUT = 300      # seconds for tool calls
+_DEFAULT_TOOL_TIMEOUT = 300  # seconds for tool calls
 
 
 def _resolve_tool_timeout(config: dict) -> float:
@@ -50,6 +52,7 @@ def _resolve_tool_timeout(config: dict) -> float:
         return per_server
     try:
         from agent.deadline import resolve_timeout
+
         resolved = resolve_timeout("mcp.tool_call", default=_DEFAULT_TOOL_TIMEOUT)
         if resolved is not None:
             return resolved
@@ -59,26 +62,30 @@ def _resolve_tool_timeout(config: dict) -> float:
 
 
 # Jitter on reconnect backoff so servers that lost the same backend don't retry in lockstep.
-_BACKOFF_JITTER = 0.2            # +/-20%
+_BACKOFF_JITTER = 0.2  # +/-20%
 
 
 def _jittered(seconds: float) -> float:
     """``seconds`` with +/-20% uniform jitter, floored at 0."""
-    return max(0.0, seconds * random.uniform(1.0 - _BACKOFF_JITTER, 1.0 + _BACKOFF_JITTER))
+    return max(
+        0.0, seconds * random.uniform(1.0 - _BACKOFF_JITTER, 1.0 + _BACKOFF_JITTER)
+    )
 
 
 # Credential patterns to strip from error messages: GitHub PAT, OpenAI-style key, Bearer token,
 # and ``token= / key= / API_KEY= / password= / secret=`` assignments.
 _CREDENTIAL_PATTERN = re.compile(
     r"(?:ghp_[A-Za-z0-9_]{1,255}|sk-[A-Za-z0-9_-](?:\.?[A-Za-z0-9_-]){0,254}|Bearer\s+\S+"
-    r"|(?:token|key|API_KEY|password|secret)=[^\s&,;\"']{1,255})", re.IGNORECASE)
+    r"|(?:token|key|API_KEY|password|secret)=[^\s&,;\"']{1,255})",
+    re.IGNORECASE,
+)
 
 
 def _env_ref_name(ref: str) -> str:
     """Bare env-var name from a ``${...}`` body; strips a Cursor-style ``env:`` prefix."""
     ref = ref.strip()
     if ref.startswith("env:"):
-        ref = ref[len("env:"):].strip()
+        ref = ref[len("env:") :].strip()
     return ref
 
 
@@ -133,7 +140,11 @@ def _parse_boolish(value: Any, default: bool = True) -> bool:
             return True
         if lowered in _FALSE_WORDS:
             return False
-    logger.warning("MCP config expected a boolean-ish value, got %r; using default=%s", value, default)
+    logger.warning(
+        "MCP config expected a boolean-ish value, got %r; using default=%s",
+        value,
+        default,
+    )
     return default
 
 
@@ -155,9 +166,30 @@ def _get_lifecycle_seconds(config: dict, key: str) -> Optional[float]:
     try:
         seconds = float(raw)
     except (TypeError, ValueError):
-        logger.warning("MCP config %s must be a number of seconds; ignoring %r", key, raw)
+        logger.warning(
+            "MCP config %s must be a number of seconds; ignoring %r", key, raw
+        )
         return None
     if seconds < 0:
         logger.warning("MCP config %s must be positive; ignoring %r", key, raw)
         return None
     return seconds or None
+
+
+def mcp_sdk_diagnosis() -> Optional[str]:
+    """Explain how to restore optional MCP support, or None when installed."""
+    if importlib.util.find_spec("mcp") is not None:
+        return None
+    from pm.features import read_features
+
+    recorded = "mcp" in (read_features() or [])
+    command = "hermes pm repair" if recorded else "hermes pm install --extra mcp"
+    reason = (
+        "The recorded MCP extra is damaged"
+        if recorded
+        else "The optional MCP extra is not installed"
+    )
+    return (
+        f"{reason}; the 'mcp' Python SDK is missing. Run `{command}`. "
+        "A running gateway/agent needs a restart to load MCP tools."
+    )

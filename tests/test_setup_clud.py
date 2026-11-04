@@ -18,7 +18,7 @@ from hermes_cli import setup_clud
 
 
 def test_the_command_is_configure_only_and_targets_this_install():
-    target = Path("/opt/hermes-slim")
+    target = Path("/opt/talos")
     command = setup_clud.clud_install_command("/usr/bin/clud", target)
     assert command == [
         "/usr/bin/clud",
@@ -26,7 +26,7 @@ def test_the_command_is_configure_only_and_targets_this_install():
         "talos",
         "--configure-only",
         "--target",
-        "/opt/hermes-slim",
+        "/opt/talos",
     ]
 
 

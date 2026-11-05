@@ -71,6 +71,97 @@ export function isStaleSingletonLockOwner(procState: string | null | undefined):
   return procState.trim() === 'Z'
 }
 
+interface UserDataHost {
+  getPath(name: 'userData'): string
+}
+
+export interface SingletonLockHost {
+  releaseSingleInstanceLock(): void
+  requestSingleInstanceLock(): boolean
+}
+
+/**
+ * Re-take the lock when its files vanished under a running owner (Linux only).
+ *
+ * Chromium's lock is only files: `SingletonLock` plus a socket under $TMPDIR. A
+ * temp-dir sweep removes the socket while this process lives, and the next launch
+ * then finds nobody listening, takes the lock over and boots a second app. When
+ * that app exits it deletes the lock, so every later launch boots another.
+ * A lock some other process holds is left alone: releasing here could only race it.
+ * Returns true when this call re-took the lock.
+ */
+export function healSingletonLock(
+  host: SingletonLockHost,
+  userDataDir: string,
+  deps: { platform?: NodeJS.Platform; hostname?: string; pid?: number } = {}
+): boolean {
+  if ((deps.platform ?? process.platform) !== 'linux') {
+    return false
+  }
+
+  let target: string | null = null
+
+  try {
+    target = fs.readlinkSync(path.join(userDataDir, 'SingletonLock'))
+  } catch {
+    // Missing: the lock is gone and is ours to take back.
+  }
+
+  const own = `${deps.hostname ?? os.hostname()}-${deps.pid ?? process.pid}`
+
+  if (target !== null && target !== own) {
+    return false
+  }
+
+  // existsSync follows the symlink, so a swept socket reads as missing.
+  if (target === own && fs.existsSync(path.join(userDataDir, 'SingletonSocket'))) {
+    return false
+  }
+
+  host.releaseSingleInstanceLock()
+
+  return host.requestSingleInstanceLock()
+}
+
+/**
+ * #78101: on Linux/X11 a zombie/defunct Electron process leaves the SingletonLock
+ * symlink behind with a PID that still answers kill(pid, 0), so Chromium's own
+ * liveness probe keeps refusing every later launch and the app silently exits.
+ * Clear a provably-dead owner and retry once; always log when the lock is
+ * legitimately lost so the exit is diagnosable.
+ */
+export function acquireSingleInstanceLock(app: SingletonLockHost & UserDataHost): boolean {
+  if (app.requestSingleInstanceLock()) {
+    return true
+  }
+
+  const stalePid = removeStaleSingletonLock(app.getPath('userData'))
+
+  if (stalePid !== null) {
+    console.error(`[hermes] removed stale SingletonLock (owner ${stalePid} dead); retrying launch`)
+
+    return app.requestSingleInstanceLock()
+  }
+
+  return false
+}
+
+/** Keep the running owner reachable by later launches. See healSingletonLock. */
+export function startSingletonLockHeal(
+  app: SingletonLockHost & UserDataHost & { once(event: 'before-quit', listener: () => void): unknown },
+  log: (message: string) => void
+): void {
+  const timer = setInterval(() => {
+    if (healSingletonLock(app, app.getPath('userData'))) {
+      log('[singleton] re-took a removed lock')
+    }
+  }, 10_000)
+
+  timer.unref()
+  // A relaunch or update hands the lock to its successor; never take it back during a quit.
+  app.once('before-quit', () => clearInterval(timer))
+}
+
 /** Read `/proc/<pid>/stat`'s state field, or null when the entry is gone. */
 export function readLinuxProcState(pid: number): string | null {
   try {

@@ -3,9 +3,10 @@ import fs from 'node:fs'
 import os from 'node:os'
 import path from 'node:path'
 
-import { test } from 'vitest'
+import { describe, test } from 'vitest'
 
 import {
+  healSingletonLock,
   isStaleSingletonLockOwner,
   parseProcStateField,
   parseSingletonLockPid,
@@ -86,4 +87,52 @@ test('removeStaleSingletonLock unlinks only a provably-dead owner', () => {
   } finally {
     fs.rmSync(root, { recursive: true, force: true })
   }
+})
+
+describe('healSingletonLock', () => {
+  const heal = (lock: string | null, socketExists: boolean) => {
+    const dir = fs.mkdtempSync(path.join(os.tmpdir(), 'singleton-heal-'))
+    const socket = path.join(dir, 'socket')
+    const calls: string[] = []
+
+    try {
+      if (lock) {
+        fs.symlinkSync(lock, path.join(dir, 'SingletonLock'))
+        fs.symlinkSync(socket, path.join(dir, 'SingletonSocket'))
+      }
+
+      if (socketExists) {
+        fs.writeFileSync(socket, '')
+      }
+
+      const healed = healSingletonLock(
+        {
+          releaseSingleInstanceLock: () => calls.push('release'),
+          requestSingleInstanceLock: () => calls.push('request') > 0
+        },
+        dir,
+        { platform: 'linux', hostname: 'host', pid: 7 }
+      )
+
+      return { calls, healed }
+    } finally {
+      fs.rmSync(dir, { force: true, recursive: true })
+    }
+  }
+
+  test('a swept socket under our own lock is re-taken', () => {
+    assert.deepEqual(heal('host-7', false), { calls: ['release', 'request'], healed: true })
+  })
+
+  test('a removed lock is re-taken', () => {
+    assert.deepEqual(heal(null, false), { calls: ['release', 'request'], healed: true })
+  })
+
+  test('an intact lock is left alone', () => {
+    assert.deepEqual(heal('host-7', true), { calls: [], healed: false })
+  })
+
+  test('a lock another process holds is never released', () => {
+    assert.deepEqual(heal('host-8', false), { calls: [], healed: false })
+  })
 })

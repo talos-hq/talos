@@ -58,6 +58,12 @@ jobs:
       # Read by the signing step's `if` (a step's own env is not visible there).
       AZURE_CLIENT_ID: ${{ secrets.AZURE_CLIENT_ID }}
       HAS_AZURE_CLIENT_SECRET: ${{ secrets.AZURE_CLIENT_SECRET != '' }}
+      # Signing needs an Entra federated credential for the pull_request
+      # subject, which this App Registration does not have: AADSTS7002131 on
+      # every win32-x64 PR (talos#4/#6/#8). Build unsigned on PRs, sign only
+      # on push/tag/dispatch, and let the verify step below stay a warning
+      # until the release path signs.
+      SIGN_WINDOWS: ${{ matrix.target == 'win32-x64' && github.event_name != 'pull_request' }}
       HAS_APPLE_SIGNING: ${{ secrets.APPLE_DEVELOPER_ID_APP_P12 != '' }}
     steps:
       - name: Alpine prerequisites
@@ -94,14 +100,14 @@ jobs:
       # Without AZURE_CLIENT_SECRET, authenticate via OIDC: the App Registration needs a
       # federated credential for this repo; the action then uses AzureCliCredential.
       - name: Azure login (OIDC)
-        if: matrix.target == 'win32-x64' && env.AZURE_CLIENT_ID != '' && env.HAS_AZURE_CLIENT_SECRET != 'true'
+        if: env.SIGN_WINDOWS == 'true' && env.AZURE_CLIENT_ID != '' && env.HAS_AZURE_CLIENT_SECRET != 'true'
         uses: azure/login@a641126d1b8aa4d1fa005f4f92df94a3a4c4c906  # v3
         with:
           client-id: ${{ secrets.AZURE_CLIENT_ID }}
           tenant-id: ${{ secrets.AZURE_TENANT_ID }}
           allow-no-subscriptions: true
       - name: Sign Windows binaries
-        if: matrix.target == 'win32-x64' && env.AZURE_CLIENT_ID != ''
+        if: env.SIGN_WINDOWS == 'true' && env.AZURE_CLIENT_ID != ''
         uses: azure/artifact-signing-action@208f8af4bf26cf2af8597424e3cb5582801523ba  # v2.0.0
         with:
           azure-tenant-id: ${{ secrets.AZURE_TENANT_ID }}

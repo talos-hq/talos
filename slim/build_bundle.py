@@ -336,7 +336,10 @@ def write_unsigned_list(bundle: Path, work: Path) -> None:
     from pe_signatures import scan
 
     signed, unsigned = scan(bundle)
-    (work / "unsigned.txt").write_text("".join(f"{p}\n" for p in unsigned))
+    # The signing action joins each entry onto the catalog's directory, so an absolute
+    # entry comes out doubled (D:\work\D:\work\...). Entries are relative to `work`.
+    # relpath covers a bundle outside `work` (..\ segments); same drive on the runner.
+    (work / "unsigned.txt").write_text("".join(f"{os.path.relpath(p, work)}\n" for p in unsigned))
     print(f"{len(signed)} binaries signed upstream, {len(unsigned)} to sign: {work / 'unsigned.txt'}", flush=True)
 
 

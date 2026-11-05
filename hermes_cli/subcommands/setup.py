@@ -11,14 +11,20 @@ def build_setup_parser(subparsers, *, cmd_setup: Callable) -> None:
         "setup", help="Interactive setup wizard",
         description="Configure Hermes Agent with an interactive wizard. "
         "Run a specific section: "
-        "hermes setup model|tts|terminal|gateway|tools|telemetry|agent")
+        "hermes setup model|tts|terminal|gateway|tools|telemetry|agent|clud")
     setup_parser.add_argument(
         "section", nargs="?",
-        choices=["model", "tts", "terminal", "gateway", "tools", "telemetry", "agent"],
+        choices=[
+            "model", "tts", "terminal", "gateway", "tools", "telemetry", "agent", "clud",
+        ],
         default=None, help="Run a specific setup section instead of the full wizard")
     setup_parser.add_argument(
         "--non-interactive", action="store_true",
         help="Non-interactive mode (use defaults/env vars)")
+    setup_parser.add_argument(
+        "--print", dest="print_only", action="store_true",
+        help="With 'section=clud': print the command that would configure this "
+        "installation from clud, and change nothing")
     setup_parser.add_argument(
         "--reset", action="store_true", help="Reset configuration to defaults")
     setup_parser.add_argument(

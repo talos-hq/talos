@@ -586,6 +586,19 @@ from hermes_cli.setup_quick import _run_portal_one_shot, _run_quick_setup
 
 # ── Main Wizard Orchestrator ──
 
+def _setup_clud(config: dict) -> None:
+    """``hermes setup clud``: clud configures this install's providers (#2609).
+
+    Delegates to ``clud install talos --configure-only --target <install dir>``
+    so the credential store, the migration prompt and the config edit stay in
+    clud, where ``clud install talos`` already does them.
+    """
+    from hermes_cli.setup_clud import run_clud_section
+    code = run_clud_section()
+    if code != 0:
+        raise SystemExit(code)
+
+
 SETUP_SECTIONS = [
     ("model", "Model & Provider", setup_model_provider),
     ("tts", "Text-to-Speech", setup_tts),
@@ -594,6 +607,7 @@ SETUP_SECTIONS = [
     ("tools", "Tools", setup_tools),
     ("telemetry", "Shared Metrics", setup_telemetry),
     ("agent", "Agent Settings", setup_agent_settings),
+    ("clud", "clud Integration", _setup_clud),
 ]
 
 
@@ -691,6 +705,17 @@ def _run_setup_wizard_impl(args):
     quick_requested = bool(getattr(args, "quick", False))
     config = load_config()
     hermes_home = get_hermes_home()
+
+    # `hermes setup clud` never prompts: clud decides what it can do (it refuses
+    # a terminal-less migration by itself), so the section runs above the
+    # non-interactive guard — which exists for the wizard's own prompts.
+    if getattr(args, "section", None) == "clud":
+        if getattr(args, "print_only", False):
+            from hermes_cli.setup_clud import print_clud_command
+            print_clud_command()
+            return
+        _run_setup_section(config, "clud")
+        return
 
     # Non-interactive environments (headless SSH, Docker, CI/CD)
     if getattr(args, 'non_interactive', False) or not is_interactive_stdin():

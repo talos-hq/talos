@@ -561,7 +561,7 @@ import {
   SESSION_WINDOW_MIN_WIDTH
 } from './session-windows'
 import { ensureLoginShellPath } from './shell-path'
-import { removeStaleSingletonLock } from './singleton-lock'
+import { acquireSingleInstanceLock, startSingletonLockHeal } from './singleton-lock'
 import { createSourcePythonBackend, resolveSourceInstallationBackend, type SourceBackend } from './source-backend'
 import { resolveSourcePython } from './source-python'
 import { registerSpellcheckDictionaryIpc } from './spellcheck-dictionary-ipc'
@@ -733,28 +733,7 @@ if (USER_DATA_OVERRIDE || process.env.HERMES_DATA_DIR_SUFFIX) {
 
 // Only the lock owner may persist launch recovery markers, adopt a workspace or start a
 // backend, so the lock is taken as soon as userData is final (#131055, #143056).
-// #78101: on Linux/X11 a zombie/defunct Electron process leaves the
-// SingletonLock symlink behind with a PID that still answers kill(pid, 0),
-// so Chromium's own liveness probe keeps refusing every later launch and the
-// app silently exits. Clear a provably-dead owner and retry once; always log
-// when the lock is legitimately lost so the exit is diagnosable.
-function acquireSingleInstanceLock(): boolean {
-  if (app.requestSingleInstanceLock()) {
-    return true
-  }
-
-  const stalePid = removeStaleSingletonLock(app.getPath('userData'))
-
-  if (stalePid !== null) {
-    console.error(`[hermes] removed stale SingletonLock (owner ${stalePid} dead); retrying launch`)
-
-    return app.requestSingleInstanceLock()
-  }
-
-  return false
-}
-
-const isPrimaryInstance: boolean = acquireSingleInstanceLock()
+const isPrimaryInstance: boolean = acquireSingleInstanceLock(app)
 const relauncher = createAppRelauncher(app)
 
 if (!isPrimaryInstance) {
@@ -17751,6 +17730,8 @@ if (!isPrimaryInstance) {
   } catch (error) {
     console.error('[hermes] failed to persist --profile launch override:', error)
   }
+
+  startSingletonLockHeal(app, rememberLog)
 
   app.on('second-instance', (_event, argv) => {
     // --close-preview: the same escape hatch as hermes://close-preview, for

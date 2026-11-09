@@ -9,10 +9,10 @@
 </div>
 
 > [!NOTE]
-> **Install.** The one-line installer in [`slim/`](slim/) downloads a prebuilt bundle from this repo's releases, and there is no release yet. Until there is, run the agent from source with [hermes-slim](https://github.com/talos-hq/hermes-slim):
+> **Install.** The one-line installer in [`slim/`](slim/) downloads a prebuilt bundle from this repo's releases, and there is no release yet. Until there is, run the agent from source with [talos-hq/hermes-slim](https://github.com/talos-hq/hermes-slim):
 >
 > ```bash
-> git clone https://github.com/talos-hq/hermes-slim && cd hermes-slim && source ./activate
+> git clone https://github.com/talos-hq/hermes-slim talos && cd talos && source ./activate
 > ```
 >
 > The **Quick Install** below is upstream's: `hermes-agent.nousresearch.com/install.sh` installs upstream Hermes Agent, not Talos. Tested commands: [talosbot.ai/install](https://talosbot.ai/install/).

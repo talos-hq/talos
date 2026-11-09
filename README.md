@@ -1,3 +1,26 @@
+<div align="center">
+
+<a href="https://talosbot.ai"><img src="https://raw.githubusercontent.com/talos-hq/.github/main/profile/assets/banner-talos.jpg" alt="talos — Plan. Reason. Build." width="100%"></a>
+
+**Hermes Agent with our fixes built in, plus a signed one-line installer for Linux, macOS and Windows.**
+
+<a href="https://talosbot.ai"><img src="https://img.shields.io/badge/talosbot.ai-C89B63?style=for-the-badge&labelColor=0B0D10" alt="talosbot.ai"></a>
+
+</div>
+
+> [!NOTE]
+> **Install.** The one-line installer in [`slim/`](slim/) downloads a prebuilt bundle from this repo's releases, and there is no release yet. Until there is, run the agent from source with [talos-hq/hermes-slim](https://github.com/talos-hq/hermes-slim):
+>
+> ```bash
+> git clone https://github.com/talos-hq/hermes-slim talos && cd talos && source ./activate
+> ```
+>
+> The **Quick Install** below is upstream's: `hermes-agent.nousresearch.com/install.sh` installs upstream Hermes Agent, not Talos. Tested commands: [talosbot.ai/install](https://talosbot.ai/install/).
+
+<sub>Talos HQ's header ends here. The upstream Hermes Agent README follows unchanged.</sub>
+
+---
+
 <p align="center">
   <img src="assets/banner.png" alt="Hermes Agent" width="100%">
 </p>

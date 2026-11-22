@@ -34,31 +34,40 @@ Use any model you want — [Nous Portal](https://portal.nousresearch.com), OpenR
 
 ## Quick Install
 
-### Linux, macOS, WSL2
+<table>
+<tr><th>Mac / Linux</th><th>Windows</th></tr>
+<tr valign="top"><td>
 
-```bash
-curl -fsSL https://hermes-agent.nousresearch.com/install.sh | bash
+```sh
+curl -fsSL https://raw.githubusercontent.com/talos-hq/talos/main/slim/install.sh | sh
 ```
 
-### Windows (native, PowerShell)
+<details><summary>Explain like I'm 5</summary>
 
-> **Heads up:** Native Windows runs Hermes without WSL — CLI, gateway, TUI, and tools all work natively. If you'd rather use WSL2, the Linux/macOS one-liner above works there too. Found a bug? Please [file issues](https://github.com/NousResearch/hermes-agent/issues).
+![Hold command, tap space, type Terminal, press return, paste the command](assets/eli5/install-macos-linux.gif)
 
-Run this in PowerShell:
+On Linux, open your terminal app instead of Spotlight, then paste the same command.
+</details>
+
+</td><td>
 
 ```powershell
-iex (irm https://hermes-agent.nousresearch.com/install.ps1)
+irm https://raw.githubusercontent.com/talos-hq/talos/main/slim/install.ps1 | iex
 ```
 
-The source installer delegates Python 3.14, Node.js, npm, ripgrep, FFmpeg,
-and Python dependencies to PM. If Git is absent, it stages the verified Git
-for Windows archive in Hermes' tool store. It does not replace your system Git.
-See [installation methods](https://hermes-agent.nousresearch.com/docs/getting-started/installation)
-for the separate MSIX/App Installer package and its update ownership.
+<details><summary>Explain like I'm 5</summary>
+
+![Hold the Windows key, tap R, type powershell, press Enter, paste the command](assets/eli5/install-windows.gif)
+
+</details>
+
+</td></tr>
+</table>
+
+The installers download a prebuilt bundle from this repo's releases, check its
+sha256 and run setup. Nothing is compiled. Re-run to upgrade.
 
 > **Android / Termux:** A signed APT repository is available for aarch64 devices, with a `stable` channel (tagged releases) and a prerelease `canary` channel. The package includes Python, Node.js, and the TUI. Use the [Termux guide](https://hermes-agent.nousresearch.com/docs/getting-started/termux), not the desktop/server installer script.
->
-> **Windows:** Native Windows is fully supported — the PowerShell one-liner above installs everything. If you'd rather use WSL2, the Linux command works there too. Native Windows install lives under `%LOCALAPPDATA%\hermes`; WSL2 installs under `~/.hermes` as on Linux.
 
 After installation:
 
